@@ -1,39 +1,47 @@
-pipeline {
+pipeline{
     agent any
-    tools{
-        maven 'maven_3_5_0'
+    environment {
+        PATH = "$PATH:/usr/share/maven/bin"
     }
     stages{
-        stage('Build Maven'){
+       stage('GetCode'){
             steps{
-                checkout([$class: 'GitSCM', branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/Java-Techie-jt/devops-automation']]])
-                sh 'mvn clean install'
+                git 'https://github.com/gundepallieswartej/jenkins-docker-example.git'
             }
+         }        
+       stage('Build'){
+            steps{
+                sh 'mvn clean package'
+            }
+         }
+        stage('SonarQube analysis') {
+//    def scannerHome = tool 'SonarScanner 4.0';
+        steps{
+        withSonarQubeEnv('sonarqube-8.9.9') { 
+        // If you have configured more than one global server connection, you can specify its name
+//      sh "${scannerHome}/bin/sonar-scanner"
+        sh "mvn sonar:sonar"
+    }
+        }
         }
         stage('Build docker image'){
             steps{
                 script{
-                    sh 'docker build -t javatechie/devops-integration .'
+                    sh 'docker build -t gundepallieswartej/devops-automation .'
                 }
             }
         }
         stage('Push image to Hub'){
             steps{
                 script{
-                   withCredentials([string(credentialsId: 'dockerhub-pwd', variable: 'dockerhubpwd')]) {
-                   sh 'docker login -u javatechie -p ${dockerhubpwd}'
+                   withCredentials([string(credentialsId: 'dockerhubcred', variable: 'dockerhubcred')]) {
+                   sh 'docker login -u eswargundepalli -p ${dockerhubcred}'
 
 }
-                   sh 'docker push javatechie/devops-integration'
+                   sh 'docker push gundepallieswartej/devops-automation'
                 }
             }
         }
-        stage('Deploy to k8s'){
-            steps{
-                script{
-                    kubernetesDeploy (configs: 'deploymentservice.yaml',kubeconfigId: 'k8sconfigpwd')
-                }
-            }
-        }
+        
     }
 }
